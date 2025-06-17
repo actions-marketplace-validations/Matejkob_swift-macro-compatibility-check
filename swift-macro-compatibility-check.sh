@@ -33,6 +33,8 @@ ALL_VERSIONS=(
   "510.0.2"
   "510.0.3"
   "600.0.0"
+  "600.0.1"
+  "601.0.0"
 )
 
 # List of major swift-syntax versions
@@ -40,6 +42,7 @@ MAJOR_VERSIONS=(
   "509.0.0"
   "510.0.0"
   "600.0.0"
+  "601.0.0"
 )
 
 # Choose which versions to use based on input
