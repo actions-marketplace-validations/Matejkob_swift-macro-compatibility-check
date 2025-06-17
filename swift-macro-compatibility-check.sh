@@ -35,6 +35,7 @@ ALL_VERSIONS=(
   "600.0.0"
   "600.0.1"
   "601.0.0"
+  "601.0.1"
 )
 
 # List of major swift-syntax versions
