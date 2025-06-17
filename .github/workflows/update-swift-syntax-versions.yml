@@ -24,17 +24,20 @@ jobs:
         # Fetch releases from GitHub API
         RELEASES=$(curl -s "https://api.github.com/repos/swiftlang/swift-syntax/releases" | jq -r '.[].tag_name')
         
-        # Filter out prereleases (containing "prerelease")
-        OFFICIAL_RELEASES=$(echo "$RELEASES" | grep -v "prerelease" | sort -V)
+        # Filter out prereleases and non-standard versions, only keep versions >= 509.0.0
+        OFFICIAL_RELEASES=$(echo "$RELEASES" | grep -E '^[0-9]{3}\.[0-9]+\.[0-9]+$' | awk -F. '$1 >= 509 { print }' | sort -V)
         
         # Read current versions from script
         CURRENT_VERSIONS=$(grep -A 20 "ALL_VERSIONS=(" swift-macro-compatibility-check.sh | grep -o '"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"' | tr -d '"' | sort -V)
         
-        # Find new versions
+        # Find new versions (only versions >= 509.0.0)
         NEW_VERSIONS=""
         for version in $OFFICIAL_RELEASES; do
           if ! echo "$CURRENT_VERSIONS" | grep -q "^$version$"; then
-            NEW_VERSIONS="$NEW_VERSIONS $version"
+            # Double-check version is >= 509.0.0
+            if echo "$version" | awk -F. '$1 >= 509 { exit 0 } { exit 1 }'; then
+              NEW_VERSIONS="$NEW_VERSIONS $version"
+            fi
           fi
         done
         
@@ -69,34 +72,40 @@ jobs:
         NEW_ARRAY="$NEW_ARRAY)"
         
         # Replace the ALL_VERSIONS array in the script
-        awk '
+        awk -v version_list="$(echo "$ALL_VERSIONS" | tr '\n' ' ')" '
         /^ALL_VERSIONS=\(/ { 
           print "ALL_VERSIONS=("
           while (getline > 0 && !/^\)/) { }
-          for (version in versions) {
-            print "  \"" version "\""
+          split(version_list, version_array, " ")
+          for (i in version_array) {
+            if (version_array[i] != "") {
+              print "  \"" version_array[i] "\""
+            }
           }
           print ")"
           next
         }
         { print }
-        ' versions="$(echo "$ALL_VERSIONS" | tr '\n' ' ')" swift-macro-compatibility-check.sh.bak > swift-macro-compatibility-check.sh
+        ' swift-macro-compatibility-check.sh.bak > swift-macro-compatibility-check.sh
         
         # Update MAJOR_VERSIONS if needed (major versions are x.0.0)
         MAJOR_VERSIONS=$(echo "$ALL_VERSIONS" | grep '\.0\.0$')
         if [ -n "$MAJOR_VERSIONS" ]; then
-          awk '
+          awk -v version_list="$(echo "$MAJOR_VERSIONS" | tr '\n' ' ')" '
           /^MAJOR_VERSIONS=\(/ { 
             print "MAJOR_VERSIONS=("
             while (getline > 0 && !/^\)/) { }
-            for (version in versions) {
-              print "  \"" version "\""
+            split(version_list, version_array, " ")
+            for (i in version_array) {
+              if (version_array[i] != "") {
+                print "  \"" version_array[i] "\""
+              }
             }
             print ")"
             next
           }
           { print }
-          ' versions="$(echo "$MAJOR_VERSIONS" | tr '\n' ' ')" swift-macro-compatibility-check.sh > swift-macro-compatibility-check.sh.tmp
+          ' swift-macro-compatibility-check.sh > swift-macro-compatibility-check.sh.tmp
           mv swift-macro-compatibility-check.sh.tmp swift-macro-compatibility-check.sh
         fi
         
